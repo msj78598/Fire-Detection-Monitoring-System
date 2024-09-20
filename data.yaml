@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 5
+names: ['0', '1', '2', '3', '4']
+
+roboflow:
+  workspace: nova-3000c
+  project: fire-detection-f7a05
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/nova-3000c/fire-detection-f7a05/dataset/1
