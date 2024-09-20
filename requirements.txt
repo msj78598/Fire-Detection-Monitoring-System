@@ -1,7 +1,6 @@
 streamlit
-torch  # مكتبة PyTorch
-opencv-python-headless  # لتجنب مشاكل OpenGL
-pandas  # مكتبة لمعالجة البيانات
-openpyxl  # مكتبة للتعامل مع ملفات Excel
-playsound  # لتشغيل الإنذارات الصوتية
-Pillow  # مكتبة للتعامل مع الصور
+opencv-python-headless
+pandas
+openpyxl
+playsound
+Pillow
