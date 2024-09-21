@@ -54,9 +54,10 @@ if st.sidebar.button("استخراج التقرير"):
 st.title("🔥 Fire Detection Monitoring System")
 st.markdown("<h4 style='text-align: center; color: #FF5733;'>نظام مراقبة لاكتشاف الحريق</h4>", unsafe_allow_html=True)
 
-# تحميل نموذج YOLOv5
+# تحميل نموذج YOLOv5 من المسار النسبي داخل المشروع
 if "model" not in st.session_state:
-    st.session_state.model = torch.hub.load('ultralytics/yolov5', 'custom', path='best.pt')
+    st.session_state.model = torch.hub.load('ultralytics/yolov5', 'custom', path='./best.pt')
+
 
 # زر لبدء الفيديو
 start_detection = st.button('🚨 ابدأ الكشف عن الحريق 🚨')
