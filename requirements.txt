@@ -1,8 +1,6 @@
 streamlit
-pandas
-opencv-python-headless
 torch
-numpy
-pillow
+opencv-python-headless
+pandas
 openpyxl
-playsound
+pillow
