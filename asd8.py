@@ -56,7 +56,7 @@ st.markdown("<h4 style='text-align: center; color: #FF5733;'>نظام مراقب
 
 # تحميل نموذج YOLOv5
 if "model" not in st.session_state:
-    st.session_state.model = torch.hub.load('ultralytics/yolov5', 'custom', path='C:/asd8/yolov5/runs/train/exp/weights/best.pt')
+    st.session_state.model = torch.hub.load('ultralytics/yolov5', 'custom', path='best.pt')
 
 st.write("<div style='text-align: center;'>👀 اضغط على الزر لبدء المراقبة</div>", unsafe_allow_html=True)
 
