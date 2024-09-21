@@ -8,10 +8,6 @@ from PIL import Image
 from datetime import datetime
 import pandas as pd
 import time  # لإضافة تأخير للوميض
-import pygame  # لتشغيل الصوت في الخلفية
-
-# تهيئة pygame لتشغيل الصوت
-pygame.mixer.init()
 
 # تنسيق الصفحة
 st.set_page_config(page_title="Fire Detection Monitoring", page_icon="🔥", layout="wide")
@@ -54,9 +50,6 @@ if st.sidebar.button("استخراج التقرير"):
     else:
         st.sidebar.error("❌ لا توجد اكتشافات لاستخراج التقرير.")
 
-# خيار لتحميل ملف صوتي من الجهاز المحلي في الإعدادات الجانبية
-uploaded_audio = st.sidebar.file_uploader("🔊 اختر ملف صوت للتنبيه (اختياري)", type=["mp3", "wav"])
-
 # نظام اكتشاف الحرائق
 st.title("🔥 Fire Detection Monitoring System")
 st.markdown("<h4 style='text-align: center; color: #FF5733;'>نظام مراقبة لاكتشاف الحريق</h4>", unsafe_allow_html=True)
@@ -83,13 +76,6 @@ if start_detection:
 
     fire_classes = [0, 1, 2, 3, 4]
     conf_threshold = 0.5
-
-    if uploaded_audio:
-        # حفظ الملف الصوتي في مجلد مؤقت لتشغيله لاحقًا باستخدام pygame
-        audio_path = "temp_audio_file.wav"
-        with open(audio_path, "wb") as f:
-            f.write(uploaded_audio.getbuffer())
-        pygame.mixer.music.load(audio_path)  # تحميل الصوت إلى pygame
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -127,10 +113,6 @@ if start_detection:
                     time.sleep(0.5)
                     alert_box.markdown("<div style='background-color: white; color: white; font-size: 24px; text-align: center;'> </div>", unsafe_allow_html=True)
                     time.sleep(0.5)
-
-                # تشغيل الصوت إذا تم تحميل ملف صوتي
-                if uploaded_audio:
-                    pygame.mixer.music.play()
 
         # عرض الفيديو
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

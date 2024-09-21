@@ -2,6 +2,4 @@ streamlit
 torch
 opencv-python-headless
 pandas
-openpyxl
 Pillow
-pygame
