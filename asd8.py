@@ -7,6 +7,7 @@ import cv2
 from PIL import Image
 from datetime import datetime
 import pandas as pd
+from ultralytics import YOLO
 
 # تنسيق الصفحة
 st.set_page_config(page_title="Fire Detection Monitoring", page_icon="🔥", layout="wide")
@@ -53,10 +54,9 @@ if st.sidebar.button("استخراج التقرير"):
 st.title("🔥 Fire Detection Monitoring System")
 st.markdown("<h4 style='text-align: center; color: #FF5733;'>نظام مراقبة لاكتشاف الحريق</h4>", unsafe_allow_html=True)
 
-# تحميل نموذج YOLOv5
+# تحميل نموذج YOLOv5 باستخدام ultralytics
 if "model" not in st.session_state:
-    st.session_state.model = torch.hub.load('ultralytics/yolov5', 'custom', path='./best.pt', force_reload=True)
-
+    st.session_state.model = YOLO('best.pt')  # تأكد من أن مسار ملف النموذج صحيح
 
 st.write("<div style='text-align: center;'>👀 اضغط على الزر لبدء المراقبة</div>", unsafe_allow_html=True)
 
@@ -99,25 +99,4 @@ if start_detection:
 
                 now = datetime.now()
                 timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
-                cv2.putText(frame, f"🕒 Detected at: {timestamp}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-
-                image_filename = f"fire_detected_{now.strftime('%Y%m%d_%H%M%S')}.jpg"
-                cv2.imwrite(image_filename, frame)
-
-                st.session_state.fire_images.insert(0, {'image': image_filename, 'timestamp': timestamp})
-                st.session_state.fire_detections.insert(0, {'time': timestamp, 'image': image_filename, 'confidence': confidence})
-
-                # توفير رابط لتنزيل الصوت عند اكتشاف الحريق
-                st.write("🔥 حريق مكتشف! [اضغط هنا لتشغيل الصوت](mixkit-urgent-simple-tone-loop-2976.wav)")
-
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        img_pil = Image.fromarray(frame_rgb)
-        stframe.image(img_pil, width=700)
-
-        if st.session_state.fire_images:
-            fire_images_placeholder.subheader("🔥 الصور المكتشفة:")
-            cols = fire_images_placeholder.columns(3)
-            for idx, fire_image in enumerate(st.session_state.fire_images):
-                cols[idx % 3].image(fire_image['image'], caption=f"🕒 {fire_image['timestamp']}", use_column_width=True)
-
-    cap.release()
+                cv2.putText(frame, f"🕒 Detected at: {timestamp}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255),
