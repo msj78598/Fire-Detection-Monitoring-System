@@ -1,6 +1,6 @@
 streamlit
 torch
+ultralytics
 opencv-python-headless
 pandas
-openpyxl
 Pillow
