@@ -99,4 +99,22 @@ if start_detection:
 
                 now = datetime.now()
                 timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
-                cv2.putText(frame, f"🕒 Detected at: {timestamp}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255),
+                cv2.putText(frame, f"🕒 Detected at: {timestamp}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+                image_filename = f"fire_detected_{now.strftime('%Y%m%d_%H%M%S')}.jpg"
+                cv2.imwrite(image_filename, frame)
+
+                st.session_state.fire_images.insert(0, {'image': image_filename, 'timestamp': timestamp})
+                st.session_state.fire_detections.insert(0, {'time': timestamp, 'image': image_filename, 'confidence': confidence})
+
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        img_pil = Image.fromarray(frame_rgb)
+        stframe.image(img_pil, width=700)
+
+        if st.session_state.fire_images:
+            fire_images_placeholder.subheader("🔥 الصور المكتشفة:")
+            cols = fire_images_placeholder.columns(3)
+            for idx, fire_image in enumerate(st.session_state.fire_images):
+                cols[idx % 3].image(fire_image['image'], caption=f"🕒 {fire_image['timestamp']}", use_column_width=True)
+
+    cap.release()
