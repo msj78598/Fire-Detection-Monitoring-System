@@ -56,7 +56,7 @@ st.markdown("<h4 style='text-align: center; color: #FF5733;'>نظام مراقب
 
 # تحميل نموذج YOLOv5
 if "model" not in st.session_state:
-    st.session_state.model = torch.hub.load('ultralytics/yolov5', 'custom', path='best.pt')
+    st.session_state.model = torch.hub.load('ultralytics/yolov5', 'custom','path='best.pt')
 
 st.write("<div style='text-align: center;'>👀 اضغط على الزر لبدء المراقبة</div>", unsafe_allow_html=True)
 
@@ -107,7 +107,7 @@ if start_detection:
                 st.session_state.fire_images.insert(0, {'image': image_filename, 'timestamp': timestamp})
                 st.session_state.fire_detections.insert(0, {'time': timestamp, 'image': image_filename, 'confidence': confidence})
 
-                playsound('C:/asd8/mixkit-urgent-simple-tone-loop-2976.wav')
+                playsound('mixkit-urgent-simple-tone-loop-2976.wav')
 
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         img_pil = Image.fromarray(frame_rgb)
