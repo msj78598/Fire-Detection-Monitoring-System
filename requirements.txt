@@ -4,4 +4,4 @@ opencv-python-headless
 pandas
 openpyxl
 Pillow
-ultralytics
+pygame
