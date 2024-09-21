@@ -3,5 +3,4 @@ torch
 opencv-python-headless
 pandas
 openpyxl
-pygame
 Pillow
