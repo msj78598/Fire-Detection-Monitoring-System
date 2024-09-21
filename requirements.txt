@@ -3,6 +3,5 @@ torch
 opencv-python-headless
 pandas
 openpyxl
-pillow
-playsound
 pygame
+Pillow
