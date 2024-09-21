@@ -7,13 +7,17 @@ import cv2
 from PIL import Image
 from datetime import datetime
 import pandas as pd
-from ultralytics import YOLO
+import time  # لإضافة تأخير للوميض
+import pygame  # لتشغيل الصوت في الخلفية
+
+# تهيئة pygame لتشغيل الصوت
+pygame.mixer.init()
 
 # تنسيق الصفحة
 st.set_page_config(page_title="Fire Detection Monitoring", page_icon="🔥", layout="wide")
 
-# شريط جانبي للإدارة
-st.sidebar.title("⚙️ الإدارة")
+# شريط جانبي للإعدادات
+st.sidebar.title("⚙️ الإعدادات")
 
 # إضافة خيار لإصدار تقرير Excel
 st.sidebar.subheader("📊 إصدار تقرير")
@@ -50,15 +54,16 @@ if st.sidebar.button("استخراج التقرير"):
     else:
         st.sidebar.error("❌ لا توجد اكتشافات لاستخراج التقرير.")
 
+# خيار لتحميل ملف صوتي من الجهاز المحلي في الإعدادات الجانبية
+uploaded_audio = st.sidebar.file_uploader("🔊 اختر ملف صوت للتنبيه (اختياري)", type=["mp3", "wav"])
+
 # نظام اكتشاف الحرائق
 st.title("🔥 Fire Detection Monitoring System")
 st.markdown("<h4 style='text-align: center; color: #FF5733;'>نظام مراقبة لاكتشاف الحريق</h4>", unsafe_allow_html=True)
 
-# تحميل نموذج YOLOv5 باستخدام ultralytics
+# تحميل نموذج YOLOv5
 if "model" not in st.session_state:
-    st.session_state.model = YOLO('best.pt')  # تأكد من أن مسار ملف النموذج صحيح
-
-st.write("<div style='text-align: center;'>👀 اضغط على الزر لبدء المراقبة</div>", unsafe_allow_html=True)
+    st.session_state.model = torch.hub.load('ultralytics/yolov5', 'custom', path='C:/asd8/yolov5/runs/train/exp/weights/best.pt')
 
 # زر لبدء الفيديو
 start_detection = st.button('🚨 ابدأ الكشف عن الحريق 🚨')
@@ -68,7 +73,9 @@ if "fire_detections" not in st.session_state:
 if "fire_images" not in st.session_state:
     st.session_state.fire_images = []
 
-stframe = st.empty()
+# قسم خاص بالإنذار سيكون **أعلى شاشة المراقبة**
+alert_box = st.empty()
+stframe = st.empty()  # شاشة المراقبة
 fire_images_placeholder = st.empty()
 
 if start_detection:
@@ -76,6 +83,13 @@ if start_detection:
 
     fire_classes = [0, 1, 2, 3, 4]
     conf_threshold = 0.5
+
+    if uploaded_audio:
+        # حفظ الملف الصوتي في مجلد مؤقت لتشغيله لاحقًا باستخدام pygame
+        audio_path = "temp_audio_file.wav"
+        with open(audio_path, "wb") as f:
+            f.write(uploaded_audio.getbuffer())
+        pygame.mixer.music.load(audio_path)  # تحميل الصوت إلى pygame
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -107,10 +121,23 @@ if start_detection:
                 st.session_state.fire_images.insert(0, {'image': image_filename, 'timestamp': timestamp})
                 st.session_state.fire_detections.insert(0, {'time': timestamp, 'image': image_filename, 'confidence': confidence})
 
+                # تشغيل الإنذار الضوئي **أعلى شاشة المراقبة**
+                for i in range(5):  # تكرار الوميض 5 مرات
+                    alert_box.markdown("<div style='background-color: red; color: white; font-size: 24px; text-align: center;'>🚨🔥 إنذار حريق! 🔥🚨</div>", unsafe_allow_html=True)
+                    time.sleep(0.5)
+                    alert_box.markdown("<div style='background-color: white; color: white; font-size: 24px; text-align: center;'> </div>", unsafe_allow_html=True)
+                    time.sleep(0.5)
+
+                # تشغيل الصوت إذا تم تحميل ملف صوتي
+                if uploaded_audio:
+                    pygame.mixer.music.play()
+
+        # عرض الفيديو
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         img_pil = Image.fromarray(frame_rgb)
         stframe.image(img_pil, width=700)
 
+        # عرض الصور المكتشفة
         if st.session_state.fire_images:
             fire_images_placeholder.subheader("🔥 الصور المكتشفة:")
             cols = fire_images_placeholder.columns(3)
