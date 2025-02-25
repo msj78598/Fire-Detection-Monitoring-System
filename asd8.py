@@ -7,11 +7,12 @@ from PIL import Image
 from datetime import datetime
 import pandas as pd
 import time
+import sys
 
 # ✅ إعداد الصفحة
 st.set_page_config(page_title="Fire Detection Monitoring", page_icon="🔥", layout="wide")
 
-# ✅ التأكد من تثبيت `torch` و `opencv-python` و `pandas`
+# ✅ تثبيت المكتبات المطلوبة إذا لم تكن موجودة
 try:
     import torch
     import cv2
@@ -21,6 +22,14 @@ except ImportError:
     import torch
     import cv2
     import pandas as pd
+
+# ✅ تحميل YOLOv5 من GitHub إذا لم يكن مثبتًا
+if not os.path.exists("yolov5"):
+    os.system("git clone https://github.com/ultralytics/yolov5.git")
+    os.system("pip install -r yolov5/requirements.txt")
+
+sys.path.append('./yolov5')
+from models.experimental import attempt_load
 
 # ✅ تحميل النموذج (`best.pt`) من GitHub إذا لم يكن موجودًا
 model_dir = "models"
@@ -37,10 +46,8 @@ if not os.path.exists(model_path):
 else:
     print("✔️ النموذج موجود مسبقًا!")
 
-# ✅ تحميل YOLOv5 باستخدام `torch.hub.load()`
-st.session_state.model = torch.hub.load(
-    "ultralytics/yolov5", "custom", path=model_path, source="github", trust_repo=True
-)
+# ✅ تحميل النموذج باستخدام `attempt_load()`
+st.session_state.model = attempt_load(model_path, map_location="cpu")
 
 # ✅ الشريط الجانبي للإعدادات
 st.sidebar.title("⚙️ الإعدادات")
