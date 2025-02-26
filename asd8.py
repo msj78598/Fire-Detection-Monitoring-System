@@ -1,144 +1,115 @@
 import os
 import streamlit as st
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import torch
-import cv2
 import urllib.request
+import cv2
+import av
+import numpy as np
 from PIL import Image
 from datetime import datetime
-import pandas as pd
-import time
+from ultralytics import YOLO
 
-# ✅ تثبيت `ultralytics` تلقائيًا إذا لم تكن مثبتة
-os.system("pip install --upgrade ultralytics")
+# ✅ تحميل `best.pt` إذا لم يكن موجودًا
+MODEL_PATH = "best.pt"
+MODEL_URL = "https://raw.githubusercontent.com/msj78598/Fire-Detection-Monitoring-System/main/best.pt"
 
-# ✅ استيراد YOLO بعد التثبيت
-from ultralytics import YOLO  
+if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 10000:
+    st.warning("🔄 يتم تحميل النموذج... يرجى الانتظار!")
+    urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+    st.success("✅ تم تحميل النموذج بنجاح!")
 
-# ✅ تحميل النموذج (`best.pt`) من GitHub إذا لم يكن موجودًا
-model_dir = "models"
-model_filename = "best.pt"
-model_path = os.path.join(model_dir, model_filename)
-model_url = "https://raw.githubusercontent.com/msj78598/Fire-Detection-Monitoring-System/main/best.pt"
+# ✅ تحميل نموذج YOLO
+try:
+    model = YOLO(MODEL_PATH)
+    st.success("✅ تم تحميل YOLOv5 بنجاح!")
+except Exception as e:
+    st.error(f"❌ خطأ في تحميل YOLOv5: {e}")
+    st.stop()
 
-if not os.path.exists(model_dir):
-    os.makedirs(model_dir)
-
-if not os.path.exists(model_path) or os.path.getsize(model_path) < 10000:
-    print("❌ ملف best.pt غير موجود أو تالف، سيتم إعادة تحميله...")
-    os.remove(model_path) if os.path.exists(model_path) else None
-    urllib.request.urlretrieve(model_url, model_path)
-    print("✅ تم تحميل best.pt بنجاح!")
-
-# ✅ تحميل النموذج باستخدام `YOLO()`
-st.session_state.model = YOLO(model_path)
-print("✅ تم تحميل نموذج YOLOv5 بنجاح!")
-
-# ✅ إعداد واجهة Streamlit
+# ✅ إعداد الصفحة
 st.set_page_config(page_title="Fire Detection Monitoring", page_icon="🔥", layout="wide")
 
-st.sidebar.title("⚙️ الإعدادات")
-st.sidebar.subheader("📊 إصدار تقرير")
+# ✅ اختيار الإدخال
+mode = st.sidebar.radio("📌 اختر طريقة الإدخال:", ["🎥 الكاميرا المباشرة", "📂 رفع صورة أو فيديو"])
 
-# 📅 تحديد الفترة الزمنية لاستخراج التقرير
-start_date = st.sidebar.date_input("📅 تاريخ البداية")
-end_date = st.sidebar.date_input("📅 تاريخ النهاية")
+# ✅ تشغيل الكاميرا عبر `Streamlit WebRTC`
+if mode == "🎥 الكاميرا المباشرة":
+    st.sidebar.warning("⚠️ تأكد من السماح للمتصفح بالوصول إلى الكاميرا.")
 
-# زر استخراج التقرير
-if st.sidebar.button("استخراج التقرير"):
-    if "fire_detections" in st.session_state and st.session_state.fire_detections:
-        filtered_detections = [
-            detection for detection in st.session_state.fire_detections
-            if start_date <= datetime.strptime(detection['time'], "%Y-%m-%d %H:%M:%S").date() <= end_date
-        ]
-        
-        if filtered_detections:
-            df = pd.DataFrame(filtered_detections)
-            df['image_link'] = df['image'].apply(lambda x: f'=HYPERLINK("{x}", "عرض الصورة")')
+    class FireDetectionTransformer(VideoTransformerBase):
+        def transform(self, frame):
+            img = frame.to_ndarray(format="bgr24")
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-            excel_file = "fire_detections_report.xlsx"
-            df.to_excel(excel_file, index=False)
+            # 🔹 تشغيل YOLOv5 على الإطار الحالي
+            results = model.predict(img_rgb, conf=0.3)
 
-            with open(excel_file, "rb") as file:
-                st.sidebar.download_button(
-                    label="📥 تحميل التقرير",
-                    data=file,
-                    file_name=excel_file,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-        else:
-            st.sidebar.error("❌ لا توجد اكتشافات في الفترة المحددة.")
-    else:
-        st.sidebar.error("❌ لا توجد اكتشافات لاستخراج التقرير.")
+            fire_detected = False
+            for r in results:
+                for box in r.boxes:
+                    if box.conf[0] > 0.3:
+                        fire_detected = True
+                        x1, y1, x2, y2 = map(int, box.xyxy[0])
+                        cv2.rectangle(img, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                        cv2.putText(img, "🔥 Fire Detected", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
-# ✅ **واجهة النظام**
-st.title("🔥 Fire Detection Monitoring System")
-st.markdown("<h4 style='text-align: center; color: #FF5733;'>نظام مراقبة لاكتشاف الحريق</h4>", unsafe_allow_html=True)
+            if fire_detected:
+                st.warning("🚨🔥 تم اكتشاف حريق! 🔥🚨")
+                st.audio("mixkit-urgent-simple-tone-loop-2976.wav", autoplay=True)
 
-# قائمة التخزين
-if "fire_detections" not in st.session_state:
-    st.session_state.fire_detections = []
-if "fire_images" not in st.session_state:
-    st.session_state.fire_images = []
+            return av.VideoFrame.from_ndarray(img, format="bgr24")
 
-# زر بدء الكشف
-start_detection = st.button('🚨 ابدأ الكشف عن الحريق 🚨')
+    webrtc_streamer(key="fire-detection", video_transformer_factory=FireDetectionTransformer,
+                    rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
 
-# **أعلى شاشة المراقبة**
-alert_box = st.empty()
-stframe = st.empty()  # شاشة الفيديو
-fire_images_placeholder = st.empty()
+# ✅ تحليل صورة أو فيديو
+elif mode == "📂 رفع صورة أو فيديو":
+    uploaded_file = st.sidebar.file_uploader("📸 قم برفع صورة أو فيديو", type=["jpg", "png", "jpeg", "mp4"])
 
-# ✅ **تشغيل الكاميرا واكتشاف الحريق**
-if start_detection:
-    cap = cv2.VideoCapture(0)
-    fire_classes = [0, 1, 2, 3, 4]  # تحديد فئات الحريق من YOLO
-    conf_threshold = 0.5  # الحد الأدنى للثقة
+    if uploaded_file:
+        file_type = uploaded_file.type.split("/")[0]
 
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            st.error("❌ خطأ في فتح الكاميرا")
-            break
+        if file_type == "image":
+            image = Image.open(uploaded_file)
+            image_np = np.array(image)
 
-        results = st.session_state.model(frame)
-        detections = results.pandas().xyxy[0]
-        detections = detections[detections['confidence'] > conf_threshold]
+            # 🔹 تشغيل YOLOv5 على الصورة
+            results = model.predict(image_np, conf=0.3)
 
-        fire_detected = False
-        for _, detection in detections.iterrows():
-            if detection['class'] in fire_classes:
-                fire_detected = True
-                x1, y1, x2, y2 = map(int, [detection['xmin'], detection['ymin'], detection['xmax'], detection['ymax']])
-                confidence = detection['confidence'] * 100
+            # 🔹 رسم المربعات على الصورة
+            for r in results:
+                for box in r.boxes:
+                    if box.conf[0] > 0.3:
+                        x1, y1, x2, y2 = map(int, box.xyxy[0])
+                        cv2.rectangle(image_np, (x1, y1), (x2, y2), (0, 0, 255), 2)
 
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
-                cv2.putText(frame, f"🔥 Fire: {confidence:.2f}%", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            st.image(image_np, caption="🔍 نتيجة تحليل الصورة", use_column_width=True)
+            st.success("✅ تم تحليل الصورة بنجاح!")
 
-                now = datetime.now()
-                timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
-                image_filename = f"fire_detected_{now.strftime('%Y%m%d_%H%M%S')}.jpg"
-                cv2.imwrite(image_filename, frame)
+        elif file_type == "video":
+            video_path = "uploaded_video.mp4"
+            with open(video_path, "wb") as f:
+                f.write(uploaded_file.read())
 
-                st.session_state.fire_images.insert(0, {'image': image_filename, 'timestamp': timestamp})
-                st.session_state.fire_detections.insert(0, {'time': timestamp, 'image': image_filename, 'confidence': confidence})
+            cap = cv2.VideoCapture(video_path)
+            stframe = st.empty()
 
-                # **تشغيل الإنذار الضوئي**
-                for _ in range(5):
-                    alert_box.markdown("<div style='background-color: red; color: white; font-size: 24px; text-align: center;'>🚨🔥 إنذار حريق! 🔥🚨</div>", unsafe_allow_html=True)
-                    time.sleep(0.5)
-                    alert_box.markdown("<div style='background-color: white; color: white; font-size: 24px; text-align: center;'> </div>", unsafe_allow_html=True)
-                    time.sleep(0.5)
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret:
+                    break
 
-        # عرض الفيديو
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        img_pil = Image.fromarray(frame_rgb)
-        stframe.image(img_pil, width=700)
+                results = model.predict(frame, conf=0.3)
 
-        # عرض الصور المكتشفة
-        if st.session_state.fire_images:
-            fire_images_placeholder.subheader("🔥 الصور المكتشفة:")
-            cols = fire_images_placeholder.columns(3)
-            for idx, fire_image in enumerate(st.session_state.fire_images):
-                cols[idx % 3].image(fire_image['image'], caption=f"🕒 {fire_image['timestamp']}", use_column_width=True)
+                for r in results:
+                    for box in r.boxes:
+                        if box.conf[0] > 0.3:
+                            x1, y1, x2, y2 = map(int, box.xyxy[0])
+                            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
 
-    cap.release()
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                stframe.image(frame_rgb, caption="🔍 تحليل الفيديو", use_column_width=True)
+
+            cap.release()
+            st.success("✅ تم تحليل الفيديو بنجاح!")
