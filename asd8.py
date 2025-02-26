@@ -1,18 +1,18 @@
+import os
 import streamlit as st
 import torch
-import os
+import cv2
 import urllib.request
-from ultralytics.yolo.engine.model import YOLO  # ✅ استخدام `YOLO()` بدل `attempt_load()`
 from PIL import Image
 from datetime import datetime
 import pandas as pd
 import time
 
-# ✅ إعداد الصفحة
-st.set_page_config(page_title="Fire Detection Monitoring", page_icon="🔥", layout="wide")
+# ✅ تثبيت `ultralytics` تلقائيًا إذا لم تكن مثبتة
+os.system("pip install --upgrade ultralytics")
 
-# ✅ تثبيت المكتبات المطلوبة إذا لم تكن موجودة
-os.system("pip install --upgrade torch torchvision opencv-python pandas ultralytics")
+# ✅ استيراد YOLO بعد التثبيت
+from ultralytics import YOLO  
 
 # ✅ تحميل النموذج (`best.pt`) من GitHub إذا لم يكن موجودًا
 model_dir = "models"
@@ -23,7 +23,6 @@ model_url = "https://raw.githubusercontent.com/msj78598/Fire-Detection-Monitorin
 if not os.path.exists(model_dir):
     os.makedirs(model_dir)
 
-# ✅ التأكد من أن `best.pt` لم يتلف أثناء التحميل
 if not os.path.exists(model_path) or os.path.getsize(model_path) < 10000:
     print("❌ ملف best.pt غير موجود أو تالف، سيتم إعادة تحميله...")
     os.remove(model_path) if os.path.exists(model_path) else None
@@ -34,7 +33,9 @@ if not os.path.exists(model_path) or os.path.getsize(model_path) < 10000:
 st.session_state.model = YOLO(model_path)
 print("✅ تم تحميل نموذج YOLOv5 بنجاح!")
 
-# ✅ الشريط الجانبي للإعدادات
+# ✅ إعداد واجهة Streamlit
+st.set_page_config(page_title="Fire Detection Monitoring", page_icon="🔥", layout="wide")
+
 st.sidebar.title("⚙️ الإعدادات")
 st.sidebar.subheader("📊 إصدار تقرير")
 
@@ -69,7 +70,7 @@ if st.sidebar.button("استخراج التقرير"):
     else:
         st.sidebar.error("❌ لا توجد اكتشافات لاستخراج التقرير.")
 
-# ✅ **نظام اكتشاف الحرائق**
+# ✅ **واجهة النظام**
 st.title("🔥 Fire Detection Monitoring System")
 st.markdown("<h4 style='text-align: center; color: #FF5733;'>نظام مراقبة لاكتشاف الحريق</h4>", unsafe_allow_html=True)
 
@@ -120,5 +121,24 @@ if start_detection:
 
                 st.session_state.fire_images.insert(0, {'image': image_filename, 'timestamp': timestamp})
                 st.session_state.fire_detections.insert(0, {'time': timestamp, 'image': image_filename, 'confidence': confidence})
+
+                # **تشغيل الإنذار الضوئي**
+                for _ in range(5):
+                    alert_box.markdown("<div style='background-color: red; color: white; font-size: 24px; text-align: center;'>🚨🔥 إنذار حريق! 🔥🚨</div>", unsafe_allow_html=True)
+                    time.sleep(0.5)
+                    alert_box.markdown("<div style='background-color: white; color: white; font-size: 24px; text-align: center;'> </div>", unsafe_allow_html=True)
+                    time.sleep(0.5)
+
+        # عرض الفيديو
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        img_pil = Image.fromarray(frame_rgb)
+        stframe.image(img_pil, width=700)
+
+        # عرض الصور المكتشفة
+        if st.session_state.fire_images:
+            fire_images_placeholder.subheader("🔥 الصور المكتشفة:")
+            cols = fire_images_placeholder.columns(3)
+            for idx, fire_image in enumerate(st.session_state.fire_images):
+                cols[idx % 3].image(fire_image['image'], caption=f"🕒 {fire_image['timestamp']}", use_column_width=True)
 
     cap.release()
